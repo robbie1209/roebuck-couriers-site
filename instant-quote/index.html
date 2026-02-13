@@ -83,6 +83,57 @@ Get a Quote
 </select>
 </div>
 
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+<div>
+<label for="weight" class="block text-sm font-medium text-gray-700 mb-1">Approximate Weight</label>
+<select id="weight" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition">
+<option value="light">Light — Under 20kg</option>
+<option value="medium">Medium — 20-100kg</option>
+<option value="heavy">Heavy — 100kg+</option>
+</select>
+</div>
+<div>
+<label for="items" class="block text-sm font-medium text-gray-700 mb-1">Number of Items</label>
+<select id="items" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition">
+<option value="1">1 item</option>
+<option value="2-5">2–5 items</option>
+<option value="6-10">6–10 items</option>
+<option value="10+">10+ items</option>
+</select>
+</div>
+</div>
+
+<div>
+<label for="frequency" class="block text-sm font-medium text-gray-700 mb-1">Is this a regular booking?</label>
+<select id="frequency" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition" onchange="document.getElementById('contractDetails').style.display = this.value === 'one-off' ? 'none' : 'grid'">
+<option value="one-off">One-off delivery</option>
+<option value="regular">Regular / recurring</option>
+</select>
+</div>
+
+<div id="contractDetails" class="grid grid-cols-1 md:grid-cols-2 gap-5 bg-green-50 p-4 rounded-lg border border-green-200" style="display:none">
+<div>
+<label for="runsPerWeek" class="block text-sm font-medium text-gray-700 mb-1">How often?</label>
+<select id="runsPerWeek" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition bg-white">
+<option value="1pw">Once a week</option>
+<option value="2-3pw">2–3 times a week</option>
+<option value="daily">Daily (Mon–Fri)</option>
+<option value="2-3pm">2–3 times a month</option>
+<option value="monthly">Once a month</option>
+</select>
+</div>
+<div>
+<label for="contractLength" class="block text-sm font-medium text-gray-700 mb-1">For how long?</label>
+<select id="contractLength" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition bg-white">
+<option value="ongoing">Ongoing / no fixed term</option>
+<option value="1month">1 month trial</option>
+<option value="3months">3 months</option>
+<option value="6months">6 months</option>
+<option value="12months">12 months</option>
+</select>
+</div>
+</div>
+
 <button type="submit" id="submitBtn" class="w-full bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-lg text-lg font-semibold transition shadow-lg">
 Get My Quote
 </button>
@@ -120,6 +171,18 @@ Get My Quote
 <div class="flex justify-between text-gray-600" id="urgencyRow">
 <span>Urgency Premium (<span id="urgencyPercent">0%</span>)</span>
 <span id="urgencyPrice">£0</span>
+</div>
+<div class="flex justify-between text-gray-600" id="weightRow" style="display:none">
+<span>Weight surcharge</span>
+<span id="weightPrice">£0</span>
+</div>
+<div class="flex justify-between text-gray-600" id="itemsRow" style="display:none">
+<span>Multi-item handling</span>
+<span id="itemsPrice">£0</span>
+</div>
+<div class="flex justify-between text-green-600 font-medium" id="discountRow" style="display:none">
+<span>Regular booking discount (<span id="discountPercent">0</span>%)</span>
+<span id="discountPrice">-£0</span>
 </div>
 <div class="flex justify-between font-bold text-gray-900 pt-3 mt-2 border-t-2">
 <span>Total Estimate</span>
@@ -436,6 +499,42 @@ Request a formal quote
 
             let total = subtotal + urgencyCost;
 
+            // Weight surcharge
+            const weight = document.getElementById('weight').value;
+            let weightSurcharge = 0;
+            if (weight === 'medium') weightSurcharge = 5;
+            if (weight === 'heavy') weightSurcharge = 15;
+            total += weightSurcharge;
+
+            // Multi-item surcharge
+            const items = document.getElementById('items').value;
+            let itemSurcharge = 0;
+            if (items === '2-5') itemSurcharge = 5;
+            if (items === '6-10') itemSurcharge = 12;
+            if (items === '10+') itemSurcharge = 20;
+            total += itemSurcharge;
+
+            // Regular booking discount
+            const frequency = document.getElementById('frequency').value;
+            let discount = 0;
+            let discountPercent = 0;
+            if (frequency === 'regular') {
+                const runsPerWeek = document.getElementById('runsPerWeek').value;
+                const contractLength = document.getElementById('contractLength').value;
+                // Base discount on frequency
+                if (runsPerWeek === '1pw') discountPercent = 5;
+                if (runsPerWeek === '2-3pw') discountPercent = 10;
+                if (runsPerWeek === 'daily') discountPercent = 15;
+                if (runsPerWeek === '2-3pm') discountPercent = 3;
+                if (runsPerWeek === 'monthly') discountPercent = 2;
+                // Extra discount for longer commitment
+                if (contractLength === '3months') discountPercent += 2;
+                if (contractLength === '6months') discountPercent += 4;
+                if (contractLength === '12months') discountPercent += 6;
+                discount = total * (discountPercent / 100);
+                total -= discount;
+            }
+
             // Apply minimum charge
             const minimum = pricing.minimumCharge[vehicleType] * urgencyMultiplier;
             if (total < minimum) {
@@ -449,6 +548,11 @@ Request a formal quote
                 mileageCost,
                 urgencyPercent,
                 urgencyCost,
+                weightSurcharge,
+                itemSurcharge,
+                discount: Math.round(discount),
+                discountPercent,
+                isRegular: frequency === 'regular',
                 total: Math.round(total),
                 vehicleName: pricing.vehicleNames[vehicleType]
             };
@@ -521,6 +625,34 @@ Request a formal quote
             }
 
             result.style.display = 'block';
+
+            // Weight row
+            const weightRow = document.getElementById('weightRow');
+            if (quote.weightSurcharge > 0) {
+                weightRow.style.display = 'flex';
+                document.getElementById('weightPrice').textContent = '£' + quote.weightSurcharge;
+            } else {
+                weightRow.style.display = 'none';
+            }
+
+            // Items row
+            const itemsRow = document.getElementById('itemsRow');
+            if (quote.itemSurcharge > 0) {
+                itemsRow.style.display = 'flex';
+                document.getElementById('itemsPrice').textContent = '£' + quote.itemSurcharge;
+            } else {
+                itemsRow.style.display = 'none';
+            }
+
+            // Discount row
+            const discountRow = document.getElementById('discountRow');
+            if (quote.isRegular && quote.discount > 0) {
+                discountRow.style.display = 'flex';
+                document.getElementById('discountPercent').textContent = quote.discountPercent;
+                document.getElementById('discountPrice').textContent = '-£' + quote.discount;
+            } else {
+                discountRow.style.display = 'none';
+            }
 
             // Scroll to result
             result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
